@@ -1,0 +1,172 @@
+---
+title: "Assignment4_Josemari"
+author: "Josemari"
+date: "11/17/2020"
+output: html_document
+---
+
+```{r}
+### Task 1 ###
+# 1. Load libraires and read the data.
+library(ggplot2)
+library(openxlsx)
+data <- read.xlsx("CLGoals.xlsx")
+print(data)
+```
+```{r}
+# 2. Produce a table that tabulates frequency of each number of goals.
+frqtable <- table(data$Goals)
+
+# 3. Produce a plot of the frequency of each number of goals.
+plot(frqtable,
+     main = "Frequency of each number of goals",
+     xlab = "Number of goals",
+     ylab = "Frequency",
+     type = "h",
+     col = "blue")
+
+# 4. Calculate the mean and the standard deviation of the number of goals.
+goalsmean <- mean(data$Goals)
+goalsstd <- sd(data$Goals)
+```
+
+```{r}
+### Task 2a: Poisson Modelling ###
+# 1. Write a function that calculates the log-likelihood function (for a specified value of λ) for the Poisson model for the UEFA Champions League data.
+likeval <- function(lampois) {
+        # Take unique values.
+        unique_goals <- sort(unique(data$Goals))
+        # Create an empty vector to store the p of each value.
+        poisval <- c()
+        # Loop through the unique values.
+        for (value in unique_goals) {
+                poisval <- c(poisval, dpois(value, lampois))
+        }
+        # Get the likelihood and return the log likelihood.
+        prod = 1
+        for (i in poisval) {
+                prod = prod * i
+        }
+        logL <- log(prod)
+        return(logL)
+}
+
+# 2. Plot the log-likelihood function for a range of values of λ.
+# Get the x and y values for the plot.
+lam_range <- c(1:10)
+likeval_range <- c()
+for (value in lam_range){
+        likeval_range <- c(likeval_range, likeval(value))
+}
+# Plot.
+plot(lam_range, likeval_range)
+# 3. Add a vertical line to the plot at the value x
+plot(lam_range, likeval_range,
+     main = "Log-likelihood function",
+     xlab = "lambda values",
+     ylab = "log-likelihood values",
+     abline(v = goalsmean, col = "blue"))
+```
+```{r}
+# 4. Simulate 48 values from a Poisson model with λ = x and summarize the resulting values.
+values <- rpois(48, goalsmean)
+freqval <- table(values)
+# Plot the frequencies next to the original plot.
+par(mfrow = c(1, 2))
+plot(freqval,
+     main = "Poisson with lambda = x",
+     xlab = "Number of goals",
+     ylab = "Frequency",
+     type = "h",
+     col = "red")
+plot(frqtable,
+     main = "Original frequency of goals",
+     xlab = "Number of goals",
+     ylab = "Frequency",
+     type = "h",
+     col = "blue",
+     abline(v = goalsmean, col = "blue"))
+```
+
+```{r}
+# 5. Simulate 48 values from a Poisson model for other values of λ and summarize the resulting values.
+values_lam2 <- rpois(48, 2)
+values_lam4 <- rpois(48, 4)
+values_lam8 <- rpois(48, 8)
+freqval2 <- table(values_lam2)
+freqval4 <- table(values_lam4)
+freqval8 <- table(values_lam8)
+# Plot the frequencies next to the original plot.
+par(mfrow = c(1, 4))
+plot(freqval2, main = "lambda = 2", xlab = "Number of goals", ylab = "Frequency", type = "h", col = "orange")
+plot(freqval4, main = "lambda = 4", xlab = "Number of goals", ylab = "Frequency", type = "h", col = "red")
+plot(freqval8, main = "lambda = 8", xlab = "Number of goals", ylab = "Frequency", type = "h", col = "green")
+plot(frqtable, main = "Original freq", xlab = "Number of goals", ylab = "Frequency", type = "h", col = "blue")
+```
+```{r}
+### Task 2b: Hurdle Modelling ###
+# 1. Create a dHurdle() function that has arguments x, param that computes P {X = x} for the Hurdle model, where the first element of the vector param is θ and the second element of the vector param is λ. Ensure that the function can handle x being a vector of values.
+dHurdle <- function(x, param) {
+        
+        # Rise an error if tetha out of range.
+        if (param[1] < 0 | param[1] > 1) {
+                stop("Tehta should be in range [0, 1]")
+        }
+        
+        # Get tetha and lambda from the param vector.
+        tetha <- param[1]
+        lambd <- param[2]
+        
+        hurdle_result <- c()
+        # Hurdle is different deppending on the length of x.
+        if (length(x) == 1) {
+                # Get tetha and lambda from the param vector.
+                tetha <- param[1]
+                lambd <- param[2]
+        
+                # Hurdle distribution.
+                if (x == 0) {
+                    hurdle_result <- tetha    
+                } else {
+                        hurdle_result <- (1 - tetha) * dpois(x, lambd) * (1 / (1 - (exp(-lambd))))
+                        # Calculate poisson manually.
+                        #poisdis <- ((lambd^x * exp(-lambd))/factorial(x))
+                        #hurdle_result <- (1 - tetha) * poisdis * (1 - (exp(-lambd)))
+                }
+        } else {
+                # Iniciate mepty vector to store all the values of hurdle for each x value.
+                hurdle_vals <- c()
+                for (value in x) {
+                        # Hurdle distribution.
+                        if (value == 0) {
+                                hurdle_vals <- c(hurdle_vals, tetha)
+                                } else {
+                                        hurdle_vals <- c(hurdle_vals, (1 - tetha) * dpois(value, lambd) * (1 / (1 - (exp(-lambd)))))
+                                }   
+                }
+                hurdle_result <- hurdle_vals
+        }
+        return(hurdle_result)
+}
+dHurdle(c(1,2,3), c(0.5,7))
+```
+
+```{r}
+# 2. Write a function that calculates the log-likelihood function (for a specified value of param) for the Hurdle model for the UEFA Champions League goal data.
+like_hurdle <- function(x, param){
+        # Call the hurdle function.
+        hurdle <- dHurdle(x, param)
+        # Get the likelihood and log-likelihood.
+        L = 1
+        for (value in hurdle) {
+                L <- L * value
+        }
+        logL <- log(L)
+        
+        return(logL)
+}
+# 3. Use the optim function to find the value of θ and λ that maximizes the log-likelihood.
+#optim(par = c(1,c(0.5, 7)), like_hurdle)
+```
+
+
