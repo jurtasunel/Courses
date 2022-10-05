@@ -1,7 +1,0 @@
-ID	Design
-Seq1.bam	WT
-Seq2.bam	WT
-Seq3.bam	WT
-Seq4.bam	KO
-Seq5.bam	KO
-Seq6.bam	KO
