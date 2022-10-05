@@ -1,0 +1,104 @@
+---
+title: "Quiz2"
+author: "Josemari"
+date: "10/26/2020"
+output: pdf_document
+---
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+### Task 1: Manipulation ###
+# 1. Load the datasettriathlon2019.Rdata.
+load("triathlon2019.Rdata")
+# Have a look at it.
+head(triathlon)
+```
+
+
+```{r}
+# 2. Remove all rows containing missing values.
+cleantriahlon <- na.omit(triathlon)
+
+# 3. Append columns to the dataset with the Swim, Bike and Run speeds (in km/h) recorded..
+cleantriahlon$Swimspeed <- 3.862 / (cleantriahlon$Swim / 3600)
+cleantriahlon$Bikespeed <- 180.246 / (cleantriahlon$Bike / 3600)
+cleantriahlon$Runspeed <- 42.195 / (cleantriahlon$Run / 3600)
+head(cleantriahlon)
+```
+```{r}
+### Task 2: Analyzing/Plotting ###
+# 1. Use thepairs()plot to visualize the data.
+# Create a cariable to separate Male and Female values on the plot.
+group <- NA
+group[cleantriahlon$Gender == "Male"] <- 1
+group[cleantriahlon$Gender == "Female"] <- 2
+
+# Plot the data with Male and Female having different colours and dot shapes.
+pairs(cleantriahlon[12:14],
+      labels = c("Swim Speed (km/h)", "Bike Speed (km/h)", "Run Speed (km/h)"),
+      col = c("orange", "blue")[group],
+      pch = c(1, 18)[group],
+      main = "Triathletes' speeds comparison across discipliness")
+```
+```{r}
+# 3. For each triathlete, calculate the percentage of the overall time spent in the transitions.
+cleantriahlon$TransPer <- ((cleantriahlon$T1 + cleantriahlon$T2) / cleantriahlon$Overall) * 100
+# Plot an hinstogram.
+hist(cleantriahlon$TransPer,
+     main = "Percentage of time spent in transitions",
+     xlab = "Percentage (%)",
+     xlim = c(0,7),
+     col = "blue")
+```
+```{r}
+# 4. Produce a three panel plot with the histograms of the speed for each sport (Swim, Bike,Run).
+# Create three independet histograms for each of the disciplines
+p1 <- qplot(cleantriahlon$Swimspeed, geom = "histogram",
+            main = "Swim", xlab = "Speed (km/h)", ylab = "Frequency",
+            fill=I("blue"), col=I("black"), binwidth = 0.2)
+p2 <- qplot(cleantriahlon$Bikespeed, geom = "histogram",
+            main = "Bike", xlab = "Speed (km/h)", ylab = "Frequency",
+            fill=I("green"), col=I("black"), binwidth = 1)
+p3 <- qplot(cleantriahlon$Runspeed, geom = "histogram",
+            main = "Run", xlab = "Speed (km/h)", ylab = "Frequency",
+            fill=I("red"), col=I("black"), binwidth = 0.5)
+# Plot them together with grid.arrange().
+grid.arrange(p1, p2, p3, ncol= 3)
+
+```
+```{r}
+# 5. Construct a table of the number of athletes from each country. Represent this table as a barplot.
+countries <- table(cleantriahlon$Country)
+barplot(countries, main = "Athletes from each country",
+        ylab = "Number of athletes", col = "purple",
+        xlab = "Countries", las = 2, cex.names = 0.5)
+```
+```{r}
+# 6, 7 & 8. Construct a boxplot of the finishing times for each division. Boxes ordered by median and y-axis being hours.
+# Append a new column to the dataframe with the overall time converted to hours.
+cleantriahlon$TotalHours <- cleantriahlon$Overall / 3600
+# Plot the boxplot ordered by median.
+ggplot(data = cleantriahlon, aes(x = reorder(Division, TotalHours, FUN = median), y = TotalHours)) +
+  geom_boxplot(aes(fill = reorder(Division, TotalHours, FUN = median))) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  theme(legend.title = element_blank()) +
+  xlab("Divisions") +
+  ylab("Time (h)") +
+  ggtitle("Total time across divisions organised by median") +
+  scale_fill_discrete(guide = guide_legend(title = "Divisions"))
+
+```
+```{r}
+# Create violin plots to compare the time spent on transitons between genders.
+ggplot(data = cleantriahlon, aes(x = Gender, y = TransPer, fill = Gender)) +
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+  ggtitle("Percentage of time spent in transition") +
+  ylab("%")
+
+```
+
